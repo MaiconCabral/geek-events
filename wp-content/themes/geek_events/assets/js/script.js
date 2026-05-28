@@ -33,6 +33,7 @@
         status: document.getElementById('filter-status'),
         order: document.getElementById('filter-order'),
         clear: document.getElementById('filter-clear'),
+        filtersBar: document.getElementById('filters-bar'),
         hamburger: document.querySelector('.hamburger'),
         nav: document.getElementById('primary-nav'),
     };
@@ -148,10 +149,6 @@
     }
 
     function renderEvents(events, append) {
-        if (!append) {
-            els.grid.innerHTML = '';
-        }
-
         if (events.length === 0) {
             els.grid.innerHTML = `
                 <div class="empty-state">
@@ -163,22 +160,23 @@
             return;
         }
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'events-grid-inner';
-
-        events.forEach(function (event) {
-            wrapper.insertAdjacentHTML('beforeend', createEventHTML(event));
-        });
-
         if (append) {
-            const existing = els.grid.querySelector('.events-grid-inner');
-            if (existing) {
-                existing.appendChild(wrapper);
-            } else {
+            let inner = els.grid.querySelector('.events-grid-inner');
+            if (!inner) {
+                inner = document.createElement('div');
+                inner.className = 'events-grid-inner';
                 els.grid.innerHTML = '';
-                els.grid.appendChild(wrapper);
+                els.grid.appendChild(inner);
             }
+            events.forEach(function (event) {
+                inner.insertAdjacentHTML('beforeend', createEventHTML(event));
+            });
         } else {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'events-grid-inner';
+            events.forEach(function (event) {
+                wrapper.insertAdjacentHTML('beforeend', createEventHTML(event));
+            });
             els.grid.innerHTML = '';
             els.grid.appendChild(wrapper);
         }
@@ -236,6 +234,20 @@
         }
     }
 
+    function setFiltersLoading(loading) {
+        if (!els.filtersBar) return;
+        els.filtersBar.classList.toggle('loading', loading);
+        const inputs = els.filtersBar.querySelectorAll('input, select, button');
+        inputs.forEach(function (el) { el.disabled = loading; });
+    }
+
+    function setLoadMoreLoading(loading) {
+        if (!els.loadMore) return;
+        els.loadMore.classList.toggle('loading', loading);
+        els.loadMore.disabled = loading;
+        els.loadMore.textContent = loading ? '▸▸▸ CARREGANDO ▸▸▸' : 'CARREGAR MAIS';
+    }
+
     /* =========================================
        LOAD ACTIONS
        ========================================= */
@@ -247,6 +259,9 @@
             state.page = 1;
             showSkeleton();
         }
+
+        setFiltersLoading(true);
+        if (append) setLoadMoreLoading(true);
 
         try {
             const params = {
@@ -274,6 +289,8 @@
             console.error(err);
         } finally {
             state.isLoading = false;
+            setFiltersLoading(false);
+            if (append) setLoadMoreLoading(false);
         }
     }
 

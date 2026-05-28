@@ -808,6 +808,50 @@ ul {
 }
 
 /* =========================================
+   LOADING STATES
+   ========================================= */
+.filters-bar.loading {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+.btn.loading {
+    pointer-events: none;
+    cursor: wait;
+    position: relative;
+}
+
+.load-more.loading {
+    color: var(--neon-cyan);
+    animation: loading-blink 0.8s steps(4) infinite;
+}
+
+@keyframes loading-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.load-more.loading::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    margin-left: 8px;
+    aspect-ratio: 1;
+    background: var(--neon-pink);
+    animation: loading-dots 1s steps(4) infinite;
+    vertical-align: middle;
+}
+
+@keyframes loading-dots {
+    0%   { box-shadow: 12px 0 var(--neon-cyan), 24px 0 transparent; }
+    25%  { box-shadow: 12px 0 var(--neon-cyan), 24px 0 var(--neon-yellow); }
+    50%  { box-shadow: 12px 0 transparent, 24px 0 var(--neon-yellow); }
+    75%  { box-shadow: 12px 0 transparent, 24px 0 transparent; }
+    100% { box-shadow: 12px 0 var(--neon-cyan), 24px 0 transparent; }
+}
+
+/* =========================================
    FOOTER
    ========================================= */
 .site-footer {
