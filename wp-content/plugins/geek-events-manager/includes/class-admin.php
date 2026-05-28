@@ -15,10 +15,9 @@ class Geek_Events_Admin {
         add_filter('parse_query', [__CLASS__, 'handle_admin_filters']);
     }
 
-    // Carrega CSS/JS apenas na tela do CPT Evento
     public static function enqueue_admin_assets($hook) {
         $screen = get_current_screen();
-        if ($screen && $screen->post_type === 'geek_events_event') {
+        if ($screen && in_array($screen->post_type, ['geek_events_event', 'geek_registration'], true)) {
             wp_enqueue_style('geek-events-admin', GEEK_EVENTS_PLUGIN_URL . 'assets/css/admin.css', [], GEEK_EVENTS_VERSION);
         }
     }
@@ -39,6 +38,7 @@ class Geek_Events_Admin {
         }
         $new_columns['tickets'] = __('Ingressos', 'geek-events-manager');
         $new_columns['vacancies'] = __('Vagas', 'geek-events-manager');
+        $new_columns['registrations'] = __('Inscrições', 'geek-events-manager');
         return $new_columns;
     }
 
@@ -79,6 +79,34 @@ class Geek_Events_Admin {
                 } else {
                     echo '—';
                 }
+                break;
+
+            case 'registrations':
+                $regs = get_posts([
+                    'post_type'      => 'geek_registration',
+                    'posts_per_page' => -1,
+                    'post_status'    => ['pending', 'confirmed'],
+                    'fields'         => 'ids',
+                    'meta_query'     => [
+                        ['key' => 'registration_event', 'value' => $post_id],
+                    ],
+                ]);
+                $pending = 0;
+                $confirmed = 0;
+                foreach ($regs as $rid) {
+                    $s = get_post_status($rid);
+                    if ($s === 'confirmed') $confirmed++;
+                    elseif ($s === 'pending') $pending++;
+                }
+                $url = admin_url('edit.php?post_type=geek_registration&registration_event_filter=' . $post_id);
+                $parts = [];
+                if ($confirmed) {
+                    $parts[] = '<a href="' . esc_url($url . '&registration_status_filter=confirmed') . '" style="color:#39ff14">' . $confirmed . ' ✓</a>';
+                }
+                if ($pending) {
+                    $parts[] = '<a href="' . esc_url($url . '&registration_status_filter=pending') . '" style="color:#ffd700">' . $pending . ' ⏳</a>';
+                }
+                echo $parts ? implode(' ', $parts) : '0';
                 break;
 
             case 'vacancies':

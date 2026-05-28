@@ -31,6 +31,12 @@ class Geek_Events_Rest_API {
             ],
         ]);
 
+        register_rest_route('geek-events/v1', '/register', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [__CLASS__, 'register_for_event'],
+            'permission_callback' => '__return_true',
+        ]);
+
         register_rest_route('geek-events/v1', '/categories', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [__CLASS__, 'get_categories'],
@@ -142,6 +148,74 @@ class Geek_Events_Rest_API {
         }, $terms);
 
         return new WP_REST_Response($data, 200);
+    }
+
+    // POST /register — Cria uma inscrição em um evento
+    public static function register_for_event($request) {
+        $event_id  = (int) $request->get_param('event_id');
+        $name      = sanitize_text_field($request->get_param('name'));
+        $email     = sanitize_email($request->get_param('email'));
+        $phone     = sanitize_text_field($request->get_param('phone'));
+        $quantity  = max(1, (int) $request->get_param('quantity'));
+
+        if (!$event_id || !$name || !$email || !$phone) {
+            return new WP_Error('missing_fields', __('Preencha todos os campos obrigatórios.', 'geek-events-manager'), ['status' => 400]);
+        }
+
+        $event = get_post($event_id);
+        if (!$event || $event->post_type !== 'geek_events_event') {
+            return new WP_Error('not_found', __('Evento não encontrado.', 'geek-events-manager'), ['status' => 404]);
+        }
+
+        $event_status = get_field('geek_events_status', $event_id);
+        if (in_array($event_status, ['encerrado', 'cancelado'], true)) {
+            return new WP_Error('event_closed', __('Este evento já foi encerrado.', 'geek-events-manager'), ['status' => 400]);
+        }
+
+        $available = Geek_Events_Helpers::get_available_tickets($event_id);
+        if ($quantity > $available) {
+            return new WP_Error('no_tickets', sprintf(__('Só %d ingresso(s) disponível(is).', 'geek-events-manager'), $available), ['status' => 400]);
+        }
+
+        $existing = get_posts([
+            'post_type'      => 'geek_registration',
+            'posts_per_page' => 1,
+            'post_status'    => ['pending', 'confirmed'],
+            'meta_query'     => [
+                'relation' => 'AND',
+                ['key' => 'registration_event', 'value' => $event_id],
+                ['key' => 'registration_email', 'value' => $email],
+            ],
+        ]);
+
+        if (!empty($existing)) {
+            return new WP_Error('duplicate', __('Você já se inscreveu neste evento.', 'geek-events-manager'), ['status' => 400]);
+        }
+
+        $registration_id = wp_insert_post([
+            'post_type'   => 'geek_registration',
+            'post_title'  => $name,
+            'post_status' => 'pending',
+            'post_parent' => $event_id,
+        ]);
+
+        if (is_wp_error($registration_id)) {
+            return new WP_Error('insert_error', __('Erro ao realizar inscrição.', 'geek-events-manager'), ['status' => 500]);
+        }
+
+        update_field('registration_event', $event_id, $registration_id);
+        update_field('registration_email', $email, $registration_id);
+        update_field('registration_phone', $phone, $registration_id);
+        update_field('registration_quantity', $quantity, $registration_id);
+
+        $sold = (int) get_field('geek_events_tickets_sold', $event_id);
+        update_field('geek_events_tickets_sold', $sold + $quantity, $event_id);
+
+        return new WP_REST_Response([
+            'message'           => __('Inscrição realizada com sucesso!', 'geek-events-manager'),
+            'registration_id'   => $registration_id,
+            'status'            => 'pending',
+        ], 201);
     }
 
     // Formata os dados do evento para o response JSON (uso interno)

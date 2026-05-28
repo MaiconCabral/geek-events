@@ -448,4 +448,110 @@
 
     document.addEventListener('DOMContentLoaded', init);
 
+    /* =========================================
+       REGISTRATION FORM (Single Event Page)
+       ========================================= */
+    const regForm = document.getElementById('registration-form');
+    if (regForm) {
+        const msgEl = document.getElementById('registration-message');
+        const submitBtn = document.getElementById('registration-submit');
+        const qtyInput = document.getElementById('reg-quantity');
+
+        /* Quantity stepper */
+        document.querySelectorAll('.quantity-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const dir = this.dataset.dir;
+                const max = parseInt(qtyInput.dataset.available, 10);
+                let val = parseInt(qtyInput.value, 10) || 1;
+                if (dir === 'up' && val < max) val++;
+                if (dir === 'down' && val > 1) val--;
+                qtyInput.value = val;
+            });
+        });
+
+        /* Field validation on blur */
+        regForm.querySelectorAll('.form-input[required]').forEach(function (input) {
+            input.addEventListener('blur', function () {
+                validateField(this);
+            });
+            input.addEventListener('input', function () {
+                if (this.classList.contains('error')) {
+                    validateField(this);
+                }
+            });
+        });
+
+        function validateField(input) {
+            if (!input.value.trim()) {
+                input.classList.add('error');
+                return false;
+            }
+            if (input.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) {
+                input.classList.add('error');
+                return false;
+            }
+            if (input.id === 'reg-phone' && input.value.replace(/\D/g, '').length < 10) {
+                input.classList.add('error');
+                return false;
+            }
+            input.classList.remove('error');
+            return true;
+        }
+
+        /* Submit */
+        regForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            let valid = true;
+            regForm.querySelectorAll('.form-input[required]').forEach(function (input) {
+                if (!validateField(input)) valid = false;
+            });
+
+            if (!valid) {
+                showRegMessage('error', 'Corrija os campos destacados antes de enviar.');
+                return;
+            }
+
+            submitBtn.classList.add('loading');
+            submitBtn.textContent = 'ENVIANDO...';
+            showRegMessage('', '');
+
+            const formData = new FormData(regForm);
+            formData.append('action', 'geek_events_register');
+            formData.append('nonce', document.getElementById('registration_nonce').value);
+
+            try {
+                const res = await fetch(geekEvents.ajaxUrl, {
+                    method: 'POST',
+                    body: new URLSearchParams(formData),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showRegMessage('success', data.data.message);
+                    regForm.querySelectorAll('.form-input').forEach(function (i) { i.value = ''; });
+                    qtyInput.value = 1;
+                } else {
+                    showRegMessage('error', data.data.message);
+                }
+            } catch (err) {
+                showRegMessage('error', 'Erro de conexão. Tente novamente.');
+                console.error(err);
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = 'CONFIRMAR PRESENÇA';
+            }
+        });
+
+        function showRegMessage(type, text) {
+            msgEl.style.display = text ? 'block' : 'none';
+            msgEl.textContent = text;
+            msgEl.className = 'registration-message' + (type ? ' ' + type : '');
+        }
+    }
+
 })();

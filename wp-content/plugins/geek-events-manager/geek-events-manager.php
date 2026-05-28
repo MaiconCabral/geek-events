@@ -21,18 +21,22 @@ require_once GEEK_EVENTS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once GEEK_EVENTS_PLUGIN_DIR . 'includes/class-helpers.php';
 require_once GEEK_EVENTS_PLUGIN_DIR . 'includes/class-rest-api.php';
 require_once GEEK_EVENTS_PLUGIN_DIR . 'includes/class-field-groups.php';
+require_once GEEK_EVENTS_PLUGIN_DIR . 'includes/class-registrations.php';
 
 // Inicializa as classes principais do plugin
 function geek_events_init() {
     Geek_Events_Post_Types::init();
     Geek_Events_Admin::init();
     Geek_Events_Rest_API::init();
+    Geek_Events_Registrations::init();
 }
 add_action('plugins_loaded', 'geek_events_init');
 
 // Executado na ativação: registra CPTs e atualiza rewrite rules
 function geek_events_activate() {
-    Geek_Events_Post_Types::init();
+    Geek_Events_Post_Types::register_event_post_type();
+    Geek_Events_Post_Types::register_event_category_taxonomy();
+    Geek_Events_Registrations::register_registration_cpt();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, 'geek_events_activate');
